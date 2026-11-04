@@ -1,6 +1,74 @@
 import Foundation
+import SwiftUI
+
+public struct LogType: Sendable, Hashable {
+    public let level: LogLevel
+    public let title: String
+    public let emoji: String
+    public let badgeColor: Color
+
+    public init(level: LogLevel, title: String, emoji: String, badgeColor: Color) {
+        self.level = level
+        self.title = title
+        self.emoji = emoji
+        self.badgeColor = badgeColor
+    }
+}
+
+public enum LogLevel: String, Comparable, CaseIterable, Sendable {
+    case debug = "DEBUG"
+    case info = "INFO"
+    case success = "SUCCESS"
+    case warning = "WARNING"
+    case error = "ERROR"
+
+    private var order: Int {
+        switch self {
+        case .debug: return 0
+        case .info: return 1
+        case .success: return 2
+        case .warning: return 3
+        case .error: return 4
+        }
+    }
+
+    public static func < (lhs: LogLevel, rhs: LogLevel) -> Bool {
+        lhs.order < rhs.order
+    }
+
+    public var title: String {
+        rawValue.capitalized
+    }
+
+    public var emoji: String {
+        switch self {
+        case .debug: return "🔧"
+        case .info: return "ℹ️"
+        case .success: return "✅"
+        case .warning: return "⚠️"
+        case .error: return "❌"
+        }
+    }
+
+    public var badgeColor: Color {
+        switch self {
+        case .debug: return .secondary
+        case .info: return .blue
+        case .success: return .green
+        case .warning: return .orange
+        case .error: return .red
+        }
+    }
+
+    public var logType: LogType {
+        LogType(level: self, title: title, emoji: emoji, badgeColor: badgeColor)
+    }
+}
 
 public struct AppLogger {
+
+    nonisolated(unsafe) public static var minimumLevel: LogLevel = .info
+    nonisolated(unsafe) public static var logHandler: (@Sendable (LogLevel, String) -> Void)?
 
     public static func error(
         _ message: String,
@@ -9,7 +77,7 @@ public struct AppLogger {
         function: String = #function,
         line: Int = #line
     ) {
-        log("❌", level: "ERROR", message: message, tag: tag, file: file, function: function, line: line)
+        log(level: .error, message: message, tag: tag, file: file, function: function, line: line)
     }
 
     public static func error(
@@ -20,7 +88,7 @@ public struct AppLogger {
         function: String = #function,
         line: Int = #line
     ) {
-        log("❌", level: "ERROR", message: "\(message): \(error.localizedDescription)", tag: tag, file: file, function: function, line: line)
+        log(level: .error, message: "\(message): \(error.localizedDescription)", tag: tag, file: file, function: function, line: line)
     }
 
     public static func warning(
@@ -30,7 +98,7 @@ public struct AppLogger {
         function: String = #function,
         line: Int = #line
     ) {
-        log("⚠️", level: "WARNING", message: message, tag: tag, file: file, function: function, line: line)
+        log(level: .warning, message: message, tag: tag, file: file, function: function, line: line)
     }
 
     public static func success(
@@ -40,7 +108,7 @@ public struct AppLogger {
         function: String = #function,
         line: Int = #line
     ) {
-        log("✅", level: "SUCCESS", message: message, tag: tag, file: file, function: function, line: line)
+        log(level: .success, message: message, tag: tag, file: file, function: function, line: line)
     }
 
     public static func info(
@@ -50,7 +118,7 @@ public struct AppLogger {
         function: String = #function,
         line: Int = #line
     ) {
-        log("ℹ️", level: "INFO", message: message, tag: tag, file: file, function: function, line: line)
+        log(level: .info, message: message, tag: tag, file: file, function: function, line: line)
     }
 
     public static func debug(
@@ -60,22 +128,26 @@ public struct AppLogger {
         function: String = #function,
         line: Int = #line
     ) {
-        log("🔧", level: "DEBUG", message: message, tag: tag, file: file, function: function, line: line)
+        log(level: .debug, message: message, tag: tag, file: file, function: function, line: line)
     }
 
     // MARK: - Private
 
     private static func log(
-        _ emoji: String,
-        level: String,
+        level: LogLevel,
+        displayLevel: String? = nil,
         message: String,
         tag: String?,
         file: String,
         function: String,
         line: Int
     ) {
+        guard level >= minimumLevel else { return }
+
         let fileName = file.split(separator: "/").last.map(String.init) ?? file
         let source = tag ?? fileName
-        print("\(emoji) [\(level)] [\(source):\(line)] \(function) → \(message)")
+        let label = displayLevel ?? level.rawValue
+        print("\(level.emoji) [\(label)] [\(source):\(line)] \(function) → \(message)")
+        logHandler?(level, message)
     }
 }
