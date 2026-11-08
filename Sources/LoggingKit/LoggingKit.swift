@@ -144,7 +144,8 @@ public struct AppLogger {
     ) {
         guard level >= minimumLevel else { return }
 
-        let fileName = file.split(separator: "/").last.map(String.init) ?? file
+        let rawFileName = file.split(separator: "/").last.map(String.init) ?? file
+        let fileName = rawFileName.hasSuffix(".swift") ? String(rawFileName.dropLast(6)) : rawFileName
         let source = tag ?? fileName
         let label = displayLevel ?? level.rawValue
         print("\(level.emoji) [\(label)] [\(source):\(line)] \(function) → \(message)")
